@@ -1,6 +1,10 @@
 # 威斯敏斯特大要理问答全解
 
-**当前版本 v1.0.0**（2026-09-18）　·　线上：https://westminster-larger-catechism.netlify.app
+**当前版本 v1.0.0**（2026-09-18）
+
+线上（双镜像，内容一致）
+- Netlify：https://westminster-larger-catechism.netlify.app
+- GitHub Pages：https://07-je-cc-love-personal-20260918.github.io/westminster-larger-catechism/
 
 196 问全覆盖的静态单页站，及其 Python 生成器。欧陆改革宗视角（三项合一信条）＋ 三大普世信经坐标。
 零外部请求、自适应、可离线保存、附 A4 打印样式。
@@ -22,6 +26,7 @@ push main ──► GitHub Actions
                 ├─ cd src && python3 build.py      构建，约 0.1 秒
                 ├─ python3 verify.py               10 项静态校验，不过则中止
                 ├─ netlify deploy --prod           站点 id 取自 .netlify/state.json
+                ├─ upload-pages-artifact ─► deploy-pages    第二镜像
                 └─ 回写 site/index.html 到仓库      保证仓库内 == 线上
 push tag v* ──► 以上全部 + 自动建 GitHub Release 并附上 index.html
 pull request ──► 只构建校验，不部署
