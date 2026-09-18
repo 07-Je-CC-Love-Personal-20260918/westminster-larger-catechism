@@ -12,6 +12,27 @@ python3 verify.py   # 只校验，不重建
 ```
 构建无第三方依赖，Python 3 标准库即可。版本号见 `VERSION`，变更见 `CHANGELOG.md`。
 
+## 持续部署
+
+推到 `main` 即自动上线，无需任何手动操作：
+
+```
+push main ──► GitHub Actions
+                ├─ setup-python 3.11
+                ├─ cd src && python3 build.py      构建，约 0.1 秒
+                ├─ python3 verify.py               10 项静态校验，不过则中止
+                ├─ netlify deploy --prod           站点 id 取自 .netlify/state.json
+                └─ 回写 site/index.html 到仓库      保证仓库内 == 线上
+push tag v* ──► 以上全部 + 自动建 GitHub Release 并附上 index.html
+pull request ──► 只构建校验，不部署
+```
+
+**凭据**：仅需组织级 Secret `NETLIFY_AUTH_TOKEN`，配置一次，组织内所有仓库继承。
+站点 id 不是密钥，直接提交在 `.netlify/state.json`，因此新项目零配置。
+
+**注意**：提交信息中不要出现跳过 CI 的方括号标记（GitHub 会据此跳过整次运行）。
+自动回写的那条提交会带该标记，用于防止递归触发。
+
 ## 发布流程
 1. 改 `src/` 下对应模块
 2. `./build.sh` —— 校验必须全绿
