@@ -40,15 +40,23 @@ jobs:
             git diff --stat -- site/index.html
           fi
 
+      # 兼容两种命名：通用名 与 带日期后缀的组织命名习惯
+      - name: 检查凭据来源
+        if: github.event_name != 'pull_request'
+        env:
+          A: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          B: ${{ secrets.NETLIFY_AUTH_TOKEN_20260918 }}
+        run: |
+          if   [ -n "$A" ]; then echo "::notice::已读取 Secret: NETLIFY_AUTH_TOKEN"
+          elif [ -n "$B" ]; then echo "::notice::已读取 Secret: NETLIFY_AUTH_TOKEN_20260918"
+          else echo "::error::两个候选 Secret 均为空：NETLIFY_AUTH_TOKEN / NETLIFY_AUTH_TOKEN_20260918。请检查名称拼写、是否建在 Actions 的 Secrets 下、以及 Repository access 是否覆盖本仓库（public 仓库需选 Public repositories）"; exit 1
+          fi
+
       - name: 部署到 Netlify
         if: github.event_name != 'pull_request'
         env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN || secrets.NETLIFY_AUTH_TOKEN_20260918 }}
         run: |
-          if [ -z "$NETLIFY_AUTH_TOKEN" ]; then
-            echo "::error::缺少 NETLIFY_AUTH_TOKEN（组织级 Secret，配置一次全组织继承）"
-            exit 1
-          fi
           npx -y netlify-cli@latest deploy --dir=site --prod \
             --message "${{ github.ref_name }} @ ${{ github.sha }}"
 
