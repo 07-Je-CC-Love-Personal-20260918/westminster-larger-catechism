@@ -80,7 +80,7 @@ def map_reformation():
     b.append('<text x="%.1f" y="%.1f" class="mriver" transform="rotate(-64 %.1f %.1f)">莱 茵 河</text>'
              % (rx + 6, ry, rx + 6, ry))
     for lon, lat, t in ((14.8, 49.6, "德意志诸邦"), (1.2, 46.6, "法兰西"), (-1.5, 53.0, "英格兰"),
-                        (-4.4, 57.5, "苏格兰"), (-8.3, 54.6, "爱尔兰"), (5.6, 52.9, "低地国家"),
+                        (-4.4, 57.5, "苏格兰"), (-8.3, 54.6, "爱尔兰"), (4.0, 53.5, "低地国家"),
                         (-4.8, 41.6, "西班牙"), (12.4, 43.0, "意大利"), (10.6, 45.8, "瑞士"),
                         (9.5, 56.5, "丹麦")):
         px, py = P(lon, lat)
@@ -115,8 +115,8 @@ def map_exiles():
     b = ['<text class="t" x="16" y="24">马利亚流亡者的出走与归来 · 1553–1559　（示意图）</text>',
          '<text class="xs" x="16" y="42">这是英格兰清教主义真正的种子：数百人去看过日内瓦，回来就再也不满足于「折中」。</text>',
          '<rect x="0" y="52" width="720" height="356" class="sea"/>', _base(full=False)]
-    dests = [((7.75, 48.57), "斯特拉斯堡", 16), ((8.68, 50.11), "法兰克福", -9),
-             ((8.54, 47.37), "苏黎世", 6), ((7.59, 47.56), "巴塞尔", 22),
+    dests = [((7.75, 48.57), "斯特拉斯堡", 18), ((8.68, 50.11), "法兰克福", -9),
+             ((8.54, 47.37), "苏黎世", 6), ((7.59, 47.56), "巴塞尔", -12),
              ((6.14, 46.20), "日内瓦", -9), ((7.21, 53.37), "埃姆登", -9)]
     for (lon, lat), nm, dy in dests:
         b.append(_arc((-0.13, 51.51), (lon, lat), "marr out", 0.15, flow=True))
@@ -124,9 +124,13 @@ def map_exiles():
     b.append(_city(-0.13, 51.51, "伦敦", "1553 玛丽登基，约三百人被烧", "c5", dx=-9, dy=-10, anchor="end", r=6))
     for (lon, lat), nm, dy in dests:
         big = nm == "日内瓦"
+        # 斯特拉斯堡与巴塞尔纬度仅差 1 度，必须一左一右分开
+        dxi = -10 if nm == "斯特拉斯堡" else 10
+        anc = "end" if nm == "斯特拉斯堡" else "start"
         b.append(_city(lon, lat, nm, "《日内瓦圣经》1560" if big else "",
-                       "c2" if big else "c3", dx=10, dy=dy, r=5.8 if big else 4.2, pulse=big))
-    px, py = P(1.4, 47.6)
+                       "c2" if big else "c3", dx=dxi, dy=dy, anchor=anc,
+                       r=5.8 if big else 4.2, pulse=big))
+    px, py = P(-3.2, 45.6)
     b.append('<text x="%.1f" y="%.1f" class="mnote fe">1559 伊丽莎白登基后陆续归国</text>' % (px, py))
     b.append('<text class="sm" x="16" y="434">在日内瓦，他们亲眼看见一间<tspan class="k">按圣经治理与敬拜</tspan>的教会：'
              '长老治会、惩戒、诗篇歌唱、以讲道为中心。八十四年后，这些人的属灵后裔坐在了威斯敏斯特礼拜堂里。</text>')
@@ -156,7 +160,7 @@ def map_britain():
     b.append('<path d="%s" class="mp land"/>' % qpath(IE))
     x1, y1 = Q(-3.6, 54.9); x2, y2 = Q(-2.0, 55.77)
     b.append('<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" class="mborder"/>' % (x1, y1, x2, y2))
-    for lon, lat, t in ((-4.5, 57.1, "苏格兰"), (-1.4, 53.35, "英格兰"), (-8.2, 53.6, "爱尔兰"), (-3.9, 52.45, "威尔士")):
+    for lon, lat, t in ((-4.5, 57.1, "苏格兰"), (-2.7, 52.85, "英格兰"), (-8.2, 53.6, "爱尔兰"), (-4.5, 52.1, "威尔士")):
         px, py = Q(lon, lat)
         b.append('<text x="%.1f" y="%.1f" class="mreg" text-anchor="middle">%s</text>' % (px, py, t))
     b.append(city(-3.19, 55.95, "爱丁堡", "1637 祈祷书暴动 · 1638 国民圣约", "c2", dx=10, dy=-8, r=6.2, pulse=True))
@@ -208,7 +212,7 @@ def map_spread():
         return "".join(o)
     SRC = (352, 130)
     targets = [(200, 170, "北美殖民地", "1729 采纳 · 1788 修订", "c2", 8, -6, "start", 5.4, True),
-               (330, 138, "爱尔兰", "长老会", "c3", -8, 24, "end", 4, False),
+               (330, 138, "爱尔兰", "长老会", "c3", 10, 34, "start", 4, False),
                (612, 300, "澳洲 · 新西兰", "19 世纪移民带入", "c3", -8, -6, "end", 4, False),
                (372, 300, "非洲南部", "宣教与移民", "c3", 8, -6, "start", 4, False),
                (600, 150, "韩国 · 印尼 · 华人教会", "20 世纪宣教果实", "c3", -8, 26, "end", 4.6, False),

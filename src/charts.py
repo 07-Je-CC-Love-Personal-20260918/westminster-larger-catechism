@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """手写 SVG 图示。全部用 CSS 变量着色，自动适配浅／深主题。"""
 
+import re
+
 SPRITE = """<svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute"><defs>
 <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
   <path d="M0,0 L10,5 L0,10 z" fill="var(--gold)"/></marker>
@@ -11,11 +13,75 @@ SPRITE = """<svg width="0" height="0" aria-hidden="true" focusable="false" style
 </defs></svg>"""
 
 
+def _cw(ch):
+    """粗略字宽（font-size 11px）。"""
+    if "\u4e00" <= ch <= "\u9fff" or ch in "，。：；、（）「」《》·？！…—　“”":
+        return 11.2
+    if ch in "0123456789":
+        return 6.2
+    return 5.8
+
+
+def _wrap_sm(body, vw=720.0, pad=16.0, lh=15.0):
+    """把 <text class="sm"> 的长句按可用宽度折成多行 tspan，返回 (新body, 额外高度)。
+    SVG 的 text 不会自动换行，长注释必须在生成期折行，否则出框被 figure 裁掉。"""
+    pat = re.compile(r'<text class="sm" x="([\d.]+)" y="([\d.]+)">(.*?)</text>', re.S)
+    extra = [0.0]
+
+    def repl(m):
+        x, y, inner = float(m.group(1)), m.group(2), m.group(3)
+        avail = vw - x - pad
+        # 切成 (字符, tspan属性) 序列，保留内嵌 <tspan class="k"> 标记
+        toks, runs = re.split(r'(<tspan[^>]*>.*?</tspan>)', inner, flags=re.S), []
+        for t in toks:
+            if not t:
+                continue
+            mm = re.match(r'<tspan([^>]*)>(.*?)</tspan>', t, re.S)
+            if mm:
+                for ch in mm.group(2):
+                    runs.append((ch, mm.group(1)))
+            else:
+                for ch in t:
+                    runs.append((ch, None))
+        # 贪心折行
+        lines, cur, w = [], [], 0.0
+        for ch, attr in runs:
+            cwi = _cw(ch)
+            if w + cwi > avail and cur:
+                lines.append(cur); cur, w = [], 0.0
+            cur.append((ch, attr)); w += cwi
+        if cur:
+            lines.append(cur)
+        if len(lines) <= 1:
+            return m.group(0)
+        extra[0] = max(extra[0], (len(lines) - 1) * lh)
+        out = ['<text class="sm" x="%s" y="%s">' % (m.group(1), y)]
+        for i, ln in enumerate(lines):
+            out.append('<tspan x="%s" dy="%s">' % (m.group(1), 0 if i == 0 else lh))
+            buf, cattr = [], "###"
+            for ch, attr in ln:
+                if attr != cattr:
+                    if buf:
+                        out.append(('<tspan%s>%s</tspan>' % (cattr, "".join(buf))) if cattr else "".join(buf))
+                    buf, cattr = [], attr
+                buf.append(ch)
+            if buf:
+                out.append(('<tspan%s>%s</tspan>' % (cattr, "".join(buf))) if cattr else "".join(buf))
+            out.append('</tspan>')
+        out.append('</text>')
+        return "".join(out)
+
+    return pat.sub(repl, body), extra[0]
+
+
 _KEY = {"cur": "x"}
 
 
 def _svg(vb, body, h=None):
-    k = _KEY["cur"]
+    body, extra = _wrap_sm(body)
+    if extra:
+        a, bb, c, d = [float(v) for v in vb.split()]
+        vb = "%g %g %g %g" % (a, bb, c, d + extra)
     return ('<svg class="sv" viewBox="%s" xmlns="http://www.w3.org/2000/svg" role="img">'
             '%s</svg>') % (vb, body)
 
@@ -139,9 +205,9 @@ def fig_mediator():
         b.append('<rect x="488" y="%d" width="212" height="48" rx="7" class="bxe"/>' % (46 + i * 58))
         b.append('<text class="k" x="500" y="%d">%s　<tspan class="xs">%s</tspan></text>' % (66 + i * 58, n, q))
         b.append('<text class="xs" x="500" y="%d">%s</text>' % (82 + i * 58, d))
-    b.append('<text class="sm" x="20" y="208">大要理不把「基督论」当抽象位格学：它先问「我们需要怎样一位中保」，'
+    b.append('<text class="sm" x="20" y="216">大要理不把「基督论」当抽象位格学：它先问「我们需要怎样一位中保」，'
              '再由需要推出位格，由位格推出三职——救恩论倒逼出基督论，而不是相反。</text>')
-    return _svg("0 0 720 220", "".join(b))
+    return _svg("0 0 720 228", "".join(b))
 
 
 def fig_states():
@@ -274,30 +340,52 @@ def fig_two_covenants():
 
 
 def fig_wlc_hc():
-    """威敏大要理 vs 海德堡：两条并行柱。"""
-    b = ['<text class="t" x="16" y="22">两种编排，一套福音　·　大要理 196 问 vs 海德堡 129 问</text>']
-    left = [("问1–5　目的与准则", "bxg", 5), ("问6–90　人当信神什么", "bxn", 85),
-            ("问91–152　律法与本分", "bxc", 62), ("问153–196　蒙恩之道与祷告", "bxe", 44)]
-    right = [("问1–2　安慰与三件要知道的事", "bxg", 2), ("问3–11　人的困苦", "bxc", 9),
-             ("问12–85　人的拯救", "bxn", 74), ("问86–129　人的感恩（十诫·主祷文）", "bxe", 44)]
-    y = 52
-    for t, cls, n in left:
-        h = max(int(n * 1.55), 26)
-        b.append('<rect x="20" y="%d" width="320" height="%d" rx="6" class="%s"/>' % (y, h - 4, cls))
-        b.append('<text class="xs" x="180" y="%d" text-anchor="middle">%s</text>' % (y + h / 2 + 2, t))
-        y += h
-    y2 = 52
-    for t, cls, n in right:
-        h = max(int(n * 2.0), 26)
-        b.append('<rect x="380" y="%d" width="320" height="%d" rx="6" class="%s"/>' % (y2, h - 4, cls))
-        b.append('<text class="xs" x="540" y="%d" text-anchor="middle">%s</text>' % (y2 + h / 2 + 2, t))
-        y2 += h
-    b.append('<path class="dash" d="M344,120 L376,110"/><path class="dash" d="M344,220 L376,210"/>')
-    b.append('<text class="xs" x="20" y="42">威敏大要理（1647）</text>')
-    b.append('<text class="xs" x="380" y="42">海德堡要理问答（1563）</text>')
-    b.append('<text class="sm" x="20" y="252">柱高按问数成比例。两者「感恩／本分」一段几乎同长（44 问对 44 问），'
-             '差别在前段：海德堡把困苦压到 9 问、拯救放到 74 问；大要理把神论与谕旨展开得更早也更长。</text>')
-    return _svg("0 0 720 268", "".join(b))
+    """两条并行柱，柱高严格按问数成比例。过薄的段（<20px）不塞字，改在图下以色块标注。"""
+    b = ['<text class="t" x="16" y="22">两种编排，一套福音　·　大要理 196 问 vs 海德堡 129 问</text>',
+         '<text class="xs" x="16" y="40">柱高按问数严格成比例；两柱绘图区等高，可直接目测各段占比</text>']
+    left = [("问1–5", "目的与准则", "bxg", 5), ("问6–90", "人当信神什么", "bxn", 85),
+            ("问91–152", "律法与本分", "bxc", 62), ("问153–196", "蒙恩之道与祷告", "bxe", 44)]
+    right = [("问1–2", "安慰与三件要知道的事", "bxg", 2), ("问3–11", "人的困苦", "bxc", 9),
+             ("问12–85", "人的拯救", "bxn", 74), ("问86–129", "感恩（十诫·主祷文）", "bxe", 44)]
+    TOP, BOT, GAP = 78.0, 342.0, 3.0
+    b.append('<text class="k" x="180" y="68" text-anchor="middle">威斯敏斯特大要理　1647　·　196 问</text>')
+    b.append('<text class="k" x="540" y="68" text-anchor="middle">海德堡要理问答　1563　·　129 问</text>')
+    thin = []
+
+    def column(items, x0, total):
+        H = BOT - TOP - GAP * (len(items) - 1)
+        y = TOP
+        for rng, name, cls, n in items:
+            h = H * n / float(total)
+            b.append('<rect x="%d" y="%.1f" width="320" height="%.1f" rx="5" class="%s"/>' % (x0, y, h, cls))
+            cy = y + h / 2
+            if h >= 38:
+                b.append('<text class="k" x="%d" y="%.1f" text-anchor="middle" font-size="12">%s</text>'
+                         % (x0 + 160, cy - 3, rng))
+                b.append('<text class="xs" x="%d" y="%.1f" text-anchor="middle">%s　（%d 问）</text>'
+                         % (x0 + 160, cy + 12, name, n))
+            elif h >= 17:
+                b.append('<text class="xs" x="%d" y="%.1f" text-anchor="middle">%s　%s（%d 问）</text>'
+                         % (x0 + 160, cy + 4, rng, name, n))
+            else:
+                # 过薄：不塞字，改到图下以色块标注，同时画一条引线指向该段
+                b.append('<line class="ln" x1="%d" y1="%.1f" x2="%d" y2="%.1f"/>'
+                         % (x0 + 320, cy, x0 + 332, cy))
+                thin.append((cls, rng, name, n))
+            y += h + GAP
+
+    column(left, 20, 196)
+    column(right, 380, 129)
+    b.append('<text class="xs" x="16" y="364">过薄而无法容字的段（按比例仅数像素高，已用短引线标出）：</text>')
+    for i, (cls, rng, name, n) in enumerate(thin):
+        x = 16 + i * 232
+        b.append('<rect x="%d" y="374" width="14" height="12" rx="3" class="%s"/>' % (x, cls))
+        b.append('<text class="xs" x="%d" y="384">%s　%s（%d 问）</text>' % (x + 20, rng, name, n))
+    b.append('<text class="sm" x="16" y="410">两柱的「感恩／本分」一段几乎同长（44 问对 44 问）——'
+             '这是两大谱系最深的共鸣：<tspan class="k">顺服的位置与动机完全一致</tspan>。'
+             '差别在前段：海德堡把困苦压到 9 问、拯救放到 74 问，重心在「为我成就了什么」；'
+             '大要理把神论与谕旨展开得更早也更长，重心在「祂是谁」。</text>')
+    return _svg("0 0 720 428", "".join(b))
 
 
 def fig_sins():
@@ -339,50 +427,60 @@ def fig_dynasty():
               ("空位", 1649, 1660, "bx"), ("查二", 1660, 1685, "bxn"), ("詹二", 1685, 1688, "bxc"),
               ("威玛", 1689, 1702, "bxe")]
     T0, T1, X0, W = 1509, 1702, 20, 680
-    b = ['<text class="t" x="16" y="22">英格兰十朝 · 1509–1702　（条宽＝在位年数，真实比例）</text>']
-    b.append('<text class="xs" x="16" y="40">红＝倾向罗马　绿＝推行改革宗　金＝折中　蓝＝高派主教制　灰＝无王</text>')
+    b = ['<text class="t" x="16" y="18">英格兰十朝 · 1509–1702　（条宽＝在位年数，真实比例）</text>']
+    # 图例移到图底，把顶部空间让给窄条的挑标
 
     def X(y):
         return X0 + W * (y - T0) / float(T1 - T0)
+    narrow = 0
     for name, a, bb, cls in reigns:
         x, w = X(a), X(bb) - X(a)
-        b.append('<rect x="%.1f" y="54" width="%.1f" height="40" rx="5" class="%s"/>' % (x, max(w - 2, 5), cls))
-        if w > 30:
-            b.append('<text class="k" x="%.1f" y="79" text-anchor="middle" font-size="12">%s</text>' % (x + w / 2, name))
+        b.append('<rect x="%.1f" y="58" width="%.1f" height="40" rx="5" class="%s"/>' % (x, max(w - 2, 5), cls))
+        if w > 34:
+            b.append('<text class="k" x="%.1f" y="83" text-anchor="middle" font-size="12">%s</text>' % (x + w / 2, name))
         else:
-            b.append('<text class="xs" x="%.1f" y="110" text-anchor="middle">%s</text>' % (x + w / 2, name))
-    for y in (1509, 1547, 1558, 1603, 1625, 1649, 1660, 1688, 1702):
-        b.append('<line class="dash" x1="%.1f" y1="94" x2="%.1f" y2="102"/>' % (X(y), X(y)))
-        b.append('<text class="xs" x="%.1f" y="116" text-anchor="middle">%d</text>' % (X(y), y))
+            # 窄条：名称挑到条上方；相邻窄条必须上下错开两层，否则标签互压
+            ly = 50 if narrow % 2 == 0 else 36
+            narrow += 1
+            b.append('<line class="ln" x1="%.1f" y1="58" x2="%.1f" y2="%d" stroke-dasharray="2 2"/>'
+                     % (x + w / 2, x + w / 2, ly + 4))
+            b.append('<text class="xs" x="%.1f" y="%d" text-anchor="middle">%s</text>' % (x + w / 2, ly, name))
+    for i, y in enumerate((1509, 1547, 1558, 1603, 1625, 1649, 1660, 1688, 1702)):
+        yy = 112 if i % 2 == 0 else 126          # 交错两行，彻底避开相邻年份互相压字
+        b.append('<line class="dash" x1="%.1f" y1="98" x2="%.1f" y2="%d"/>' % (X(y), X(y), yy - 10))
+        b.append('<text class="xs" x="%.1f" y="%d" text-anchor="middle">%d</text>' % (X(y), yy, y))
     marks = [(1534, "断罗马"), (1552, "公祷书"), (1559, "折中"), (1611, "钦定本"),
              (1638, "国民圣约"), (1643, "威敏开议"), (1647, "大要理"), (1662, "大逐"), (1690, "苏格兰定案")]
     for i, (y, t) in enumerate(marks):
-        yy = 140 + (i % 3) * 22
-        b.append('<line class="ln" x1="%.1f" y1="54" x2="%.1f" y2="%d" stroke-dasharray="3 3"/>' % (X(y), X(y), yy - 10))
+        yy = 152 + (i % 3) * 22
+        b.append('<line class="ln" x1="%.1f" y1="58" x2="%.1f" y2="%d" stroke-dasharray="3 3"/>' % (X(y), X(y), yy - 10))
         b.append('<circle cx="%.1f" cy="%d" r="3" class="fg"/>' % (X(y), yy - 6))
         b.append('<text class="xs" x="%.1f" y="%d" text-anchor="middle">%d %s</text>' % (X(y), yy + 6, y, t))
-    b.append('<text class="sm" x="20" y="222">看清一件事：<tspan class="k">威斯敏斯特会议整个发生在查理一世这一条</tspan>——'
+    b.append('<text class="xs" x="16" y="222">红＝倾向罗马　绿＝推行改革宗　金＝折中　蓝＝高派主教制　灰＝无王</text>')
+    b.append('<text class="sm" x="20" y="244">看清一件事：<tspan class="k">威斯敏斯特会议整个发生在查理一世这一条</tspan>——'
              '开议、信条、大要理全在 1643–1647 的六年内；四年后他被处决，十三年后准则在英格兰被废。</text>')
-    return _svg("0 0 720 236", "".join(b))
+    return _svg("0 0 720 258", "".join(b))
 
 
 def fig_threelines():
     """欧陆／英格兰／苏格兰三线并行。"""
     T0, T1, X0, W = 1517, 1700, 68, 630
-    lanes = [("欧陆", 60, "bxg", "fg"), ("英格兰", 108, "bxn", "fn"), ("苏格兰", 156, "bxe", "fe")]
+    lanes = [("欧陆", 76, "bxg", "fg"), ("英格兰", 124, "bxn", "fn"), ("苏格兰", 172, "bxe", "fe")]
     pts = {
         "欧陆": [(1517, "路德"), (1536, "要义"), (1561, "比利时"), (1563, "海德堡"), (1610, "抗辩五条"), (1619, "多特")],
         "英格兰": [(1534, "断罗马"), (1552, "公祷书"), (1559, "折中"), (1611, "钦定本"), (1643, "开议"), (1647, "大要理"), (1662, "大逐")],
         "苏格兰": [(1560, "改教"), (1618, "珀斯"), (1638, "圣约"), (1648, "接纳"), (1690, "定案")],
     }
     b = ['<text class="t" x="16" y="22">三线并行 · 1517–1700</text>',
-         '<text class="xs" x="16" y="40">同一段年代，三条线同时在走。竖虚线标出两个「双生年」。</text>']
+         '<text class="xs" x="16" y="38">同一段年代，三条线同时在走。竖虚线标出两个「双生年」。</text>']
 
     def X(y):
         return X0 + W * (y - T0) / float(T1 - T0)
-    for y in (1559, 1563):
-        b.append('<line class="dash" x1="%.1f" y1="52" x2="%.1f" y2="184" stroke="var(--crimson)"/>' % (X(y), X(y)))
-        b.append('<text class="xs" x="%.1f" y="200" text-anchor="middle" fill="var(--crimson)">%d 双生年</text>' % (X(y), y))
+    for i, y in enumerate((1559, 1563)):
+        b.append('<line class="dash" x1="%.1f" y1="66" x2="%.1f" y2="200" stroke="var(--crimson)"/>' % (X(y), X(y)))
+        # 两年仅差 4 年，标签必须一上一下错开
+        b.append('<text class="xs" x="%.1f" y="%d" text-anchor="%s" fill="var(--crimson)">%d 双生年</text>'
+                 % (X(y) + (-4 if i == 0 else 4), 214 if i == 0 else 227, "end" if i == 0 else "start", y))
     for name, yy, cls, fcls in lanes:
         b.append('<rect x="10" y="%d" width="52" height="24" rx="5" class="%s"/>' % (yy - 12, cls))
         b.append('<text class="xs" x="36" y="%d" text-anchor="middle">%s</text>' % (yy + 4, name))
@@ -392,9 +490,9 @@ def fig_threelines():
             dy = -10 if i % 2 == 0 else 16
             b.append('<text class="xs" x="%.1f" y="%d" text-anchor="middle">%s</text>' % (X(y), yy + dy, t))
     for y in range(1520, 1701, 20):
-        b.append('<text class="xs" x="%.1f" y="216" text-anchor="middle">%d</text>' % (X(y), y))
-    b.append('<line class="ln" x1="%d" y1="204" x2="%d" y2="204"/>' % (X0, X0 + W))
-    return _svg("0 0 720 224", "".join(b))
+        b.append('<text class="xs" x="%.1f" y="252" text-anchor="middle">%d</text>' % (X(y), y))
+    b.append('<line class="ln" x1="%d" y1="240" x2="%d" y2="240"/>' % (X0, X0 + W))
+    return _svg("0 0 720 264", "".join(b))
 
 
 def fig_creeds():

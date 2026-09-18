@@ -1,6 +1,6 @@
 # 威斯敏斯特大要理问答全解
 
-**当前版本 v1.0.0**（2026-09-18）
+**当前版本 v1.1.0**（2026-09-18）
 
 线上（双镜像，内容一致）
 - Netlify：https://westminster-larger-catechism.netlify.app
@@ -11,9 +11,14 @@
 
 ## 快速上手
 ```bash
-./build.sh          # 重建 site/index.html 并跑静态校验
-python3 verify.py   # 只校验，不重建
+./build.sh           # 重建 + 静态校验 + SVG 版面校验
+python3 verify.py    # 只跑静态校验（ID/锚点/196问/标签/SVG良构/零外链）
+python3 svgcheck.py  # 只跑 SVG 版面校验（图内文字出框与重叠）
 ```
+
+> **为什么单独有 svgcheck**：`figure{overflow:hidden}` 会把出框的 SVG 文字裁掉，
+> 普通 DOM 溢出检测量不到，页面看着「零溢出」实则文字被切、被压。
+> 必须逐个 `<text>` 实测。v1.1.0 就是靠它一次查出 19 幅图的问题。
 构建无第三方依赖，Python 3 标准库即可。版本号见 `VERSION`，变更见 `CHANGELOG.md`。
 
 ## 持续部署
