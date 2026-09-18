@@ -78,8 +78,10 @@ jobs:
           git push
           echo "产物已回写，仓库与线上一致"
 
+      # 仅 main 分支打包给 Pages。github-pages 环境默认只允许受保护分支部署，
+      # tag 触发时会被环境保护规则拒绝，故 tag 路径完全跳过 Pages。
       - name: 打包产物供 GitHub Pages 使用
-        if: github.event_name != 'pull_request'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@v3
         with:
           path: site
@@ -96,7 +98,7 @@ jobs:
   # 第二个发布目标：GitHub Pages（无保留期限制，不消耗 Netlify credits）
   pages:
     needs: build
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       pages: write
