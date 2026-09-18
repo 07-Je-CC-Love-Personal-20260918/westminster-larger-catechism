@@ -1,4 +1,5 @@
-# 供 Netlify 连接本仓库自动部署使用（根目录版）
+# 构建与部署由 GitHub Actions 完成（.github/workflows/deploy.yml）
+# 此处仅声明发布目录与响应头，供手动拖拽部署时兜底
 [build]
   publish = "site"
   command = ""

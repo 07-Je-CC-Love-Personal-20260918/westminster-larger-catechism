@@ -1,0 +1,50 @@
+name: 构建 · 校验 · 部署
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 构建（纯标准库，约 0.1 秒）
+        run: cd src && python3 build.py
+
+      - name: 静态校验（不过则中止，坏版本上不了线）
+        run: python3 verify.py
+
+      - name: 部署到 Netlify
+        # PR 只构建校验不部署；站点 id 从 .netlify/state.json 读取
+        if: github.event_name != 'pull_request'
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: |
+          if [ -z "$NETLIFY_AUTH_TOKEN" ]; then
+            echo "::error::缺少 NETLIFY_AUTH_TOKEN。请在组织级 Secrets 配置一次，此后所有仓库自动继承。"
+            exit 1
+          fi
+          npx -y netlify-cli@latest deploy --dir=site --prod \
+            --message "${{ github.ref_name }} @ ${{ github.sha }}"
+
+      - name: 打 tag 时归档成品到 Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" site/index.html \
+            --title "${{ github.ref_name }}" \
+            --notes "构建产物见附件 index.html（单文件、零外部依赖、可离线打开）。变更见 CHANGELOG.md。"

@@ -1,4 +1,5 @@
 __pycache__/
 *.pyc
-.netlify/
+.netlify/*
+!.netlify/state.json
 .DS_Store
