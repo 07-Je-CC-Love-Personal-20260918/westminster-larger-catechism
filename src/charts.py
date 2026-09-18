@@ -153,8 +153,11 @@ def fig_structure():
         b.append('<rect x="%.1f" y="102" width="%.1f" height="34" rx="4" class="%s"/>' % (x, max(w - 2, 4), cls))
         if w > 42:
             b.append('<text class="xs" x="%.1f" y="117" text-anchor="middle">%s</text>' % (x + w / 2, rng))
-            b.append('<text class="xs" x="%.1f" y="130" text-anchor="middle">%s</text>'
-                     % (x + w / 2, name if len(name) <= 7 else name[:6] + "…"))
+            # 按色块实宽算能放几个字（xs 约 10px/中文字），放不下就整行不画，避免撑出色块
+            fit = int((w - 8) / 10.4)
+            if fit >= 3:
+                lab = name if len(name) <= fit else name[:fit - 1] + "…"
+                b.append('<text class="xs" x="%.1f" y="130" text-anchor="middle">%s</text>' % (x + w / 2, lab))
         x += w
     b.append('<text class="sm" x="20" y="160">十诫一段独占 48 问（占全篇四分之一），蒙恩之道与祷告合占 44 问。'
              '这个比例本身就是宣告：正统不是思辨的陈列，而是要落在良心与生活上。</text>')

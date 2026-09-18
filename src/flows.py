@@ -55,48 +55,62 @@ def flow_ordo():
 
 # ═════════════ 196 问思维导图 ═════════════
 def mind_196():
-    b = ['<text class="t" x="16" y="24">196 问思维导图 · 中心是问 5</text>']
-    b.append('<rect x="272" y="196" width="176" height="52" rx="26" class="bxc"/>')
-    b.append('<text x="360" y="218" class="k" text-anchor="middle">问 5 · 全篇目录</text>')
-    b.append('<text x="360" y="234" class="xs" text-anchor="middle">信什么　／　行什么</text>')
-    L = [("问1–5　根基", ["问1 目的：荣耀神并以祂为乐", "问3 准则：唯独圣经"], 52),
-         ("问6–35　神与约", ["问6–11 神与三一", "问12–14 谕旨", "问15–20 创造·护理·行为之约", "问21–29 堕落与刑罚", "问30–35 恩典之约"], 104),
-         ("问36–56　中保", ["问36–42 位格", "问43–45 三职", "问46–56 二态"], 216),
-         ("问57–90　施行", ["问57–65 范围与教会", "问66–78 联合·称义·成圣", "问79–90 坚忍·死·末世"], 300)]
-    R = [("问91–100　律法总论", ["问93–97 律法三用", "问99 解经八规则"], 56),
-         ("问101–148　十诫", ["问101–121 前四诫（对神）", "问122–148 后六诫（对人）"], 120),
-         ("问149–152　罪与刑罚", ["问149 无人能守全", "问150–151 罪有轻重"], 196),
-         ("问153–177　蒙恩之道", ["问153–160 圣道", "问161–167 洗礼", "问168–177 圣餐"], 252),
-         ("问178–196　祷告", ["问178–185 祷告总论", "问186–196 主祷文"], 340)]
+    """左右两枝的 y 坐标按各自子项数量自动排布，杜绝子项被下一枝方框盖住。"""
+    BOX_H, SUB_DY, SUB_LH, GAP, TOP = 30, 42, 15, 14, 56
+    L = [("问1–5　根基", ["问1 目的：荣耀神并以祂为乐", "问3 准则：唯独圣经"]),
+         ("问6–35　神与约", ["问6–11 神与三一", "问12–14 谕旨", "问15–20 创造·护理·行为之约",
+                            "问21–29 堕落与刑罚", "问30–35 恩典之约"]),
+         ("问36–56　中保", ["问36–42 位格", "问43–45 三职", "问46–56 二态"]),
+         ("问57–90　施行", ["问57–65 范围与教会", "问66–78 联合·称义·成圣", "问79–90 坚忍·死·末世"])]
+    R = [("问91–100　律法总论", ["问93–97 律法三用", "问99 解经八规则"]),
+         ("问101–148　十诫", ["问101–121 前四诫（对神）", "问122–148 后六诫（对人）"]),
+         ("问149–152　罪与刑罚", ["问149 无人能守全", "问150–151 罪有轻重"]),
+         ("问153–177　蒙恩之道", ["问153–160 圣道", "问161–167 洗礼", "问168–177 圣餐"]),
+         ("问178–196　祷告", ["问178–185 祷告总论", "问186–196 主祷文"])]
+
+    def layout(items):
+        """返回 [(标题, 子项, y)]，每枝占位 = 标题框 + 子项行数 + 间隙。"""
+        ys, y = [], TOP
+        for t, subs in items:
+            ys.append((t, subs, y))
+            y += SUB_DY + len(subs) * SUB_LH + GAP
+        return ys, y
+
+    LY, endL = layout(L)
+    RY, endR = layout(R)
+    H = max(endL, endR) + 10
+    cy = (TOP + max(endL, endR) - GAP) / 2.0
+
+    b = ['<text class="t" x="16" y="24">196 问思维导图 · 中心是问 5</text>',
+         '<text class="k" x="170" y="44" text-anchor="middle">人当信关于神的什么　问6–90</text>',
+         '<text class="k" x="570" y="44" text-anchor="middle">神向人所要求的本分　问91–196</text>']
+    b.append('<rect x="272" y="%.1f" width="176" height="52" rx="26" class="bxc"/>' % (cy - 26))
+    b.append('<text x="360" y="%.1f" class="k" text-anchor="middle">问 5 · 全篇目录</text>' % (cy - 4))
+    b.append('<text x="360" y="%.1f" class="xs" text-anchor="middle">信什么　／　行什么</text>' % (cy + 12))
+
     def branch(items, side):
-        o = []
+        x, w = (30, 200) if side < 0 else (490, 200)
+        bx = x + w if side < 0 else x
+        ctl = 250 if side < 0 else 470
         for t, subs, y in items:
-            if side < 0:
-                x, w = 40, 190
-                bx = x + w
-                ctl = 252
-            else:
-                x, w = 490, 190
-                bx = x
-                ctl = 468
-            o.append('<rect x="%d" y="%d" width="%d" height="30" rx="7" class="%s"/>'
-                     % (x, y, w, "bxn" if side < 0 else "bxg"))
-            o.append('<text x="%d" y="%d" class="k" text-anchor="middle" font-size="12">%s</text>'
+            b.append('<path class="mind" d="M%d,%.1f C%d,%.1f %d,%.1f %.1f,%.1f"/>'
+                     % (bx, y + BOX_H / 2, ctl, y + BOX_H / 2, ctl, cy, 360 + side * 90, cy))
+            b.append('<rect x="%d" y="%.1f" width="%d" height="%d" rx="7" class="%s"/>'
+                     % (x, y, w, BOX_H, "bxn" if side < 0 else "bxg"))
+            b.append('<text x="%d" y="%.1f" class="k" text-anchor="middle" font-size="12">%s</text>'
                      % (x + w / 2, y + 20, t))
-            o.append('<path class="mind" d="M%d,%d C%d,%d %d,%d %d,222"/>'
-                     % (bx, y + 15, ctl, y + 15, ctl, 222, 360 + side * 90))
-            for j, s in enumerate(subs):
-                sy = y + 42 + j * 15
+            for j, sub in enumerate(subs):
+                sy = y + SUB_DY + j * SUB_LH
                 sx = x + (12 if side < 0 else w - 12)
-                o.append('<circle cx="%d" cy="%d" r="2.6" class="%s"/>' % (sx, sy - 4, "fn" if side < 0 else "fg"))
-                o.append('<text x="%d" y="%d" class="xs" text-anchor="%s">%s</text>'
-                         % (sx + (8 if side < 0 else -8), sy, "start" if side < 0 else "end", s))
-        return "".join(o)
-    b.append(branch(L, -1))
-    b.append(branch(R, 1))
-    b.append('<text x="164" y="44" class="k" text-anchor="middle">人当信关于神的什么　问6–90</text>')
-    b.append('<text x="576" y="44" class="k" text-anchor="middle">神向人所要求的本分　问91–196</text>')
-    return _svg("0 0 720 400", "".join(b))
+                b.append('<circle cx="%d" cy="%.1f" r="2.6" class="%s"/>'
+                         % (sx, sy - 4, "fn" if side < 0 else "fg"))
+                b.append('<text x="%d" y="%.1f" class="xs" text-anchor="%s">%s</text>'
+                         % (sx + (8 if side < 0 else -8), sy, "start" if side < 0 else "end", sub))
+
+    # 先画全部连线与方框，再画文字，可确保任何方框都不会盖住已画的文字
+    branch(LY, -1)
+    branch(RY, 1)
+    return _svg("0 0 720 %d" % H, "".join(b))
 
 
 # ═════════════ 海德堡思维导图 ═════════════
@@ -177,7 +191,7 @@ def fig_shield():
              ("然而不是三位神，乃是一位神", "亚他那修信经第 15–16 条"),
              ("大要理问 9", "三位是同一位神、同一本质、同等权能与荣耀，位格有别"),
              ("大要理问 10", "父生子；子被父所生；圣灵从父与子而出——自亘古永远如此"),
-             ("比利时信条第 10 条", "子按其神性是「自有的神」（autotheos）——加尔文守住的那条线")]
+             ("比利时信条第 10 条", "子按其神性是「自有的神」autotheos——加尔文守住的界线")]
     for i, (t, d) in enumerate(lines):
         y = 74 + i * 46
         b.append('<rect x="392" y="%d" width="310" height="38" rx="7" class="%s"/>' % (y, "bxg" if i < 3 else "bx"))
